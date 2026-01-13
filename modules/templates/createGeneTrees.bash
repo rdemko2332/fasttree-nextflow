@@ -8,7 +8,7 @@ do
 
     SEQ_COUNT=\$(grep ">" \$f | wc -l) 
     if [ "\$SEQ_COUNT" -ge 3 ]; then
-	mafft --auto --anysymbol \$f | fasttree -mlnni 4 > \$f.tree
+	mafft --retree 1 --maxiterate 0 --anysymbol \$f | fasttree -mlnni 4 > \$f.tree
     else
 	touch \$f.tree
     fi	

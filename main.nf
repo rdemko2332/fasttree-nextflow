@@ -9,5 +9,5 @@ include { fasttreeWorkflow } from './modules/fasttree.nf'
 
 workflow {
     fastas = Channel.fromPath(params.proteomes)    
-    fasttreeWorkflow(fastas);
+    fasttreeWorkflow(fastas)
 }
