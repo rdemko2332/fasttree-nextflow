@@ -1,48 +1,43 @@
 #!/usr/bin/env nextflow
 nextflow.enable.dsl=2
 
-process splitBySize {
+process skipSmallGroups {
   container = 'veupathdb/orthofinder'
 
   input:
     path fasta
 
   output:
-    path 'large/*', optional: true, emit: large
-    path 'small/*', optional: true, emit: small    
+    path 'process/*', optional: true, emit: fastas
 
   script:
     """
-    mkdir small
-    mkdir large
+    mkdir process
     for f in *.fasta;
     do
       SEQ_COUNT=\$(grep ">" \$f | wc -l) 
-      if [ "\$SEQ_COUNT" -le 8000 ]; then
-	mv \$f small
-      else
-        mv \$f large
+      if [ "\$SEQ_COUNT" -ge 200 ]; then
+	cp \$f process
       fi	
     done
     """
 }
 
-process createGeneTrees {
-  container = 'veupathdb/orthofinder'
-
-  publishDir "$params.outputDir/geneTrees", mode: "copy"
+process filterForCoreSequences {
+  container = 'veupathdb/orthofinder:1.8.0'
 
   input:
     path fasta
+    path coreSequences
 
   output:
-    path '*.tree'
+    path 'filtered/*.fasta', optional: true, emit: filtered
 
   script:
-    template 'createGeneTrees.bash'
+    template 'filterForCoreSequences.bash'
 }
 
-process createLargeGeneTrees {
+process createGeneTrees {
   container = 'veupathdb/orthofinder'
 
   publishDir "$params.outputDir/geneTrees", mode: "copy"
@@ -63,11 +58,10 @@ workflow fasttreeWorkflow {
 
   main:
 
-    splitBySizeResults = splitBySize(fastas.collate(10000))
+    groupsOver200 = skipSmallGroups(fastas.collate(10000))
 
-    // Create only large gene trees
-    createGeneTrees(splitBySizeResults.small.collect().flatten().collate(1000))
-    createLargeGeneTrees(splitBySizeResults.large.collect().flatten())    
+    coreFilteredGroupFastas = filterForCoreSequences(groupsOver200.fastas.collect().flatten().collate(1000), params.coreSequences)
 
+    createGeneTrees(coreFilteredGroupFastas.filtered.collect().flatten().collate(1000))
 
 }
